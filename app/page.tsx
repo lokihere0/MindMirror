@@ -6,6 +6,7 @@ export default function Home() {
   const [emotion, setEmotion] = useState('');
   const [response, setResponse] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const emotionKeywords: Record<string, string> = {
     happy: 'You seem joyful! Keep spreading that light ✨',
@@ -15,19 +16,36 @@ export default function Home() {
     love: 'Such a beautiful feeling. Hold on to it ❤️',
   };
 
-  const analyzeEmotion = () => {
+  const sendToMindMirror = async (message: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage: message, mode: 'chat' }),
+      });
+      const data = await res.json();
+      setResponse(data.reply || "MindMirror couldn't understand that. Try again.");
+    } catch (err) {
+      console.error('MindMirror error:', err);
+      setResponse('Sorry, MindMirror had trouble responding.');
+    }
+    setLoading(false);
+  };
+
+  const analyzeEmotion = async () => {
     const lower = inputText.toLowerCase();
     const matched = Object.keys(emotionKeywords).find((keyword) =>
       lower.includes(keyword)
     );
 
-    if (matched) {
-      setEmotion(matched);
-      setResponse(emotionKeywords[matched]);
-    } else {
-      setEmotion('unknown');
-      setResponse("Hmm, I'm still learning. Can you describe how you feel?");
-    }
+    setEmotion(matched || 'unknown');
+
+    const message = matched
+      ? `The user is feeling "${matched}". Respond empathetically based on this message: "${inputText}"`
+      : inputText;
+
+    await sendToMindMirror(message);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,14 +72,15 @@ export default function Home() {
         <button
           onClick={analyzeEmotion}
           className="bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700 transition"
+          disabled={loading}
         >
-          Reflect Emotion
+          {loading ? 'Reflecting...' : 'Reflect Emotion'}
         </button>
 
-        {emotion && (
+        {response && (
           <div className="bg-white rounded p-4 shadow">
             <h2 className="text-lg font-semibold">💬 MindMirror says:</h2>
-            <p className="mt-2">{response}</p>
+            <p className="mt-2 whitespace-pre-line">{response}</p>
           </div>
         )}
 
